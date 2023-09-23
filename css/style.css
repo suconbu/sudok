@@ -1,0 +1,108 @@
+html {
+    background-color: #eee;
+    padding: 0 calc(50% - 20rem);
+}
+
+body {
+    background-color: #fff;
+    min-height: 100vh;
+    padding: 0 2rem;
+}
+
+a {
+    color: black;
+    font-weight: bold;
+    text-decoration: underline;
+    padding: 0.2rem 0.5rem;
+    padding-right: 0;
+}
+
+a:hover {
+    color: orangered;
+    /* background-color: #eee;
+    border-radius: 0.2rem; */
+}
+
+[v-cloak] {
+    display: none;
+}
+
+main {
+    display: flex;
+    flex-flow: column nowrap;
+    /* height: 100vh; */
+    /* height: calc(var(--vh) * 100); */
+    margin: 0 auto;
+}
+
+main>* {
+    margin: 0;
+    margin-bottom: 1.0rem;
+}
+
+.title {
+    text-align: center;
+    font-size: 1.5rem;
+    letter-spacing: 0.2rem;
+    font-weight: 400;
+    margin: 0.5rem 0;
+}
+
+.textbox {
+    font-size: 2rem;
+    text-align: center;
+}
+
+.masu33 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-rows: 1fr 1fr 1fr;
+    aspect-ratio: 1;
+}
+
+.masu-frame {
+    border: solid 4px #000;
+}
+
+.masu-block {
+    border: solid 3px #000;
+}
+
+.masu-cell {
+    position: relative;
+    border: solid 1px #000;
+}
+
+.masu-cell-fill {
+    position: absolute;
+    font-size: 2.5rem;
+}
+
+.masu-subcell {
+    /* border: dashed 1px #888; */
+    font-size: 0.75rem;
+    opacity: 0.5;
+}
+
+.flex-center {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+}
+
+.highlight {
+    background-color: pink;
+}
+
+.selected {
+    background-color: tomato;
+}
+
+.button {
+    background-color: #ccc;
+    border: solid 1px #888;
+    border-radius: 0.1rem;
+    margin: 0.5rem 0;
+}
