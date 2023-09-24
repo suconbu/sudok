@@ -31,7 +31,8 @@
             'color-reached-cell': cell.reachedNo != 0,
             'color-selected': cell.index == selectedCellIndex
           }"
-          @click="cellClick(cell)">
+          @touchstart="cellTouch(cell, true)"
+          @mousedown="cellTouch(cell, false)">
           <!-- マスの中の数字 -->
           <div class="masu-cell-number center-middle">
             {{cell.value}}
@@ -49,7 +50,37 @@
         </div>
       </div>
     </div>
+    <div class="title-reward"
+      :class="{'title-reward-transition': isFinished}">
+      🎍🎉🎊よくできました💮👏🌻
+    </div>
   </main>
+
+  <transition name="popup">
+    <div class="popup-fill" v-if="inputCell" @click="closeInputPopup">
+      <div class="popup-window" tabindex="0" ref="popupWindow" @click="dummy">
+        <div class="popup-text">
+          {{inputCell.value ? `今の数字は ${inputCell.value} です。` : `空のマスです。`}}
+        </div>
+        <div class="popup-button-container">
+          <!-- 数字ボタン -->
+          <input type="button" class="popup-button-number center-middle"
+            v-for="no in numbers"
+            :value="no"
+            :disabled="!inputCell.value && !inputCell.koho.has(no)"
+            @click="clickInputButton(no)">
+        </div>
+          <!-- 削除ボタン -->
+          <input type="button" class="popup-button-delete"
+            value="削除"
+            :disabled="!inputCell.value"
+            @click="clickInputButton(null)">
+        <div class="popup-close-box" @click="closeInputPopup">
+          <div class="popup-close">✖</div>
+        </div>
+      </div>
+    </div>
+  </transition>
 </div>
 
 <script>
@@ -59,7 +90,8 @@
       cells: [],
       blocks: [],
       numbers: [1, 2, 3, 4, 5, 6, 7, 8, 9],
-      selectedCellIndex: null
+      selectedCellIndex: null,
+      inputCell: null
     },
     created() {
       this.cells = Array(9 * 9).fill().map((_, idx) => {
@@ -83,13 +115,22 @@
     mounted() {
       document.addEventListener("keydown", this.keydown);
     },
+    computed: {
+      isFinished() {
+        return this.cells.every((cell) => cell.value);
+      }
+    },
     methods: {
-      cellClick(cell) {
+      cellTouch(cell, showNumpad) {
         if (cell.reachedNo) {
           // 確定
           cell.value = cell.reachedNo;
           cell.koho.clear();
           cell.reachedNo = 0;
+        } else {
+          if (showNumpad) {
+            this.inputCell = cell;
+          }
         }
 
         if (this.selectedCellIndex === cell.index) {
@@ -98,25 +139,42 @@
           this.selectedCellIndex = cell.index;
         }
       },
+      setCellValue(cell, no) {
+        let result = false;
+        if (cell.value) {
+          if (inspectCells(this.cells, cell.index, n)) {
+            cell.value = no;
+            result = true;
+          }
+        } else {
+          if (cell.koho.has(no)) {
+            cell.value = no;
+            result = true;
+          }
+        }
+        return result;
+      },
       keydown(e) {
         const cell = (this.selectedCellIndex !== null) ? this.cells[this.selectedCellIndex] : null;
         if (cell && "1" <= e.key && e.key <= "9") {
           // 数字設定
-          const n = parseInt(e.key);
+          const no = parseInt(e.key);
+          let allow = false;
           if (cell.value) {
-            if (inspectCells(this.cells, cell.index, n)) {
-              cell.value = n;
-              updateKoho(this.cells);
-            } else {
-              this.flashSelection();
+            if (inspectCells(this.cells, cell.index, no)) {
+              allow = true;
             }
           } else {
-            if (cell.koho.has(n)) {
-              cell.value = n;
-              updateKoho(this.cells);
-            } else {
-              this.flashSelection();
+            if (cell.koho.has(no)) {
+              allow = true;
             }
+          }
+
+          if (allow) {
+            cell.value = no;
+            updateKoho(this.cells);
+          } else {
+            this.flashSelection();
           }
         } else if (e.key.startsWith("Arrow")) {
           // 選択マス移動
@@ -148,6 +206,19 @@
         const idx = this.selectedCellIndex;
         this.selectedCellIndex = null;
         setTimeout(() => this.selectedCellIndex = idx, 100);
+      },
+      dummy(e) {
+          e.stopPropagation();
+      },
+      closeInputPopup() {
+        this.inputCell = null;
+      },
+      clickInputButton(no) {
+        if (this.inputCell) {
+          this.inputCell.value = no;
+          updateKoho(this.cells);
+        }
+        this.inputCell = null;
       }
     }
   });
