@@ -28,7 +28,7 @@
         <!-- マス -->
         <div class="masu3x3 masu-cell" v-for="cell in block"
           v-bind:class="{
-            'color-lastone': cell.koho.size == 1,
+            'color-reached': cell.reached,
             'color-selected': cell.id == selectedCellId
           }"
           :id="`cell-${cell.id}`"
@@ -58,16 +58,16 @@
     data: {
       cells: [],
       blocks: [],
+      numbers: [1, 2, 3, 4, 5, 6, 7, 8, 9],
       selectedCellId: null
     },
     created() {
       this.cells = Array(9 * 9).fill().map((_, idx) => {
         return {
           id: idx,
-          x: idx % 9,
-          y: Math.floor(idx / 9),
           value: null,
-          koho: new Set()
+          koho: new Set(this.numbers),
+          reached: false
         };
       });
       this.blocks = new Array(9).fill().map((_) => { return [] });
@@ -79,11 +79,8 @@
         // +----------------------------+
         this.blocks[Math.floor(idx / 3) % 3 + Math.floor(idx / (9 * 3)) * 3].push(cell);
       });
-      updateKoho(this.cells);
     },
     mounted() {
-      // const centerCell = document.querySelector("#cell-44");
-      // centerCell.focus(true);
       document.addEventListener("keydown", this.keydown);
     },
     methods: {
@@ -91,6 +88,7 @@
         if (cell.koho.size == 1) {
           cell.value = cell.koho.values().next().value;
           cell.koho.clear();
+          cell.reached = false;
         }
 
         if (this.selectedCellId === cell.id) {
@@ -104,15 +102,16 @@
         if (cell && "1" <= e.key && e.key <= "9") {
           const n = parseInt(e.key);
           if (cell.value) {
-            const old = cell.value;
-            cell.value = n;
-            if (!validateCells(this.cells)) {
-              cell.value = old;
+            if (inspectCells(this.cells, cell.id, n)) {
+              cell.value = n;
+              updateKoho(this.cells);
+            } else {
               this.flashSelection();
             }
           } else {
             if (cell.koho.has(n)) {
               cell.value = n;
+              updateKoho(this.cells);
             } else {
               this.flashSelection();
             }
@@ -134,9 +133,9 @@
           }
         } else if (cell && e.key == "Delete") {
           cell.value = null;
+          updateKoho(this.cells);
         } else {
         }
-        updateKoho(this.cells);
       },
       flashSelection() {
         const id = this.selectedCellId;
@@ -150,62 +149,82 @@
     return (y * 9) + x;
   }
 
+  function indexToX(idx) {
+    return idx % 9;
+  }
+
+  function indexToY(idx) {
+    return Math.floor(idx / 9);
+  }
+
+  function indexToBlock(idx) {
+    const bx = Math.floor(idx / 3) % 3;
+    const by = Math.floor(idx / (9 * 3));
+    return (by * 3) + bx;
+  }
+
   function blockToIndex(blockIndex, cellIndex) {
-    const x = Math.floor(blockIndex / 3) * 3  + Math.floor(cellIndex / 3) % 3;
-    const y = ((blockIndex % 3) * 3) + (cellIndex % 3);
+    const x = ((blockIndex % 3) * 3) + (cellIndex % 3);
+    const y = Math.floor(blockIndex / 3) * 3  + Math.floor(cellIndex / 3) % 3;
     return (y * 9) + x;
   }
 
   // 全セルの候補を更新
   function updateKoho(cells) {
+    // 候補更新
     for (let y = 0; y < 9; ++y) {
       for (let x = 0; x < 9; ++x) {
-        cells[xyToIndex(x, y)].koho = getKohoSet(cells, x, y);
+        const cell = cells[xyToIndex(x, y)];
+        cell.koho = getKohoSet(cells, cell.id);
+        cell.reached = (cell.koho.size == 1);
       }
     }
   }
 
   // 指定したセルの候補を取得
-  function getKohoSet(cells, x, y) {
+  function getKohoSet(cells, cellIndex) {
     const koho = [];
-    for (let n = 1; n <= 9; ++n) {
-      const cell = cells[xyToIndex(x, y)];
-      let valid = false;
-      if (!cell.value) {
-        cell.value = n;
-        if (validateCells(cells)) {
+    const cell = cells[cellIndex];
+    if (!cell.value) {
+      for (let n = 1; n <= 9; ++n) {
+        if (inspectCells(cells, cell.id, n)) {
           koho.push(n);
         }
-        cell.value = null;
       }
     }
     return new Set(koho);
   }
 
+  // 仮に指定の値を入れた場合に
   // すべての行・列・ブロックに重複がいないか確認
   // true:重複なし false:あり
-  function validateCells(cells) {
-    for (let i = 0; i < 9; ++i) {
-      if (
-        !validateRow(cells, i) ||
-        !validateCol(cells, i) ||
-        !validateBlock(cells, i)
-      ) {
-        return false;
-      }
+  function inspectCells(cells, cellIndex, tryValue) {
+    const oldValue = cells[cellIndex].value;
+    cells[cellIndex].value = tryValue;
+    let result = true;
+    const col = indexToX(cellIndex);
+    const row = indexToY(cellIndex);
+    const block = indexToBlock(cellIndex);
+    if (
+      !inspectRow(cells, row) ||
+      !inspectCol(cells, col) ||
+      !inspectBlock(cells, block)
+    ) {
+      result = false;
     }
-    return true;
+    cells[cellIndex].value = oldValue;
+    return result;
   }
 
-  function validateRow(cells, rowIndex) {
-    return !hasDuplicate(Array(9).fill().map((_, i) => cells[xyToIndex(rowIndex, i)].value));
+  function inspectRow(cells, rowIndex) {
+    return !hasDuplicate(Array(9).fill().map((_, i) => cells[xyToIndex(i, rowIndex)].value));
   }
 
-  function validateCol(cells, colIndex) {
-    return !hasDuplicate(Array(9).fill().map((_, i) => cells[xyToIndex(i, colIndex)].value));
+  function inspectCol(cells, colIndex) {
+    return !hasDuplicate(Array(9).fill().map((_, i) => cells[xyToIndex(colIndex, i)].value));
   }
 
-  function validateBlock(cells, blockIndex) {
+  function inspectBlock(cells, blockIndex) {
     return !hasDuplicate(Array(9).fill().map((_, i) => cells[blockToIndex(blockIndex, i)].value));
   }
 
