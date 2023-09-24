@@ -128,6 +128,7 @@
           cell.value = cell.reachedNo;
           cell.koho.clear();
           cell.reachedNo = 0;
+          updateKoho(this.cells);
         } else {
           if (byTap) {
             setTimeout(() => { this.inputCell = cell; }, 100);
