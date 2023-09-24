@@ -28,7 +28,7 @@
         <!-- マス -->
         <div class="masu3x3 masu-cell" v-for="cell in block"
           v-bind:class="{
-            'color-reached': cell.reached,
+            'color-reached-cell': cell.reachedNo != 0,
             'color-selected': cell.id == selectedCellId
           }"
           :id="`cell-${cell.id}`"
@@ -39,12 +39,13 @@
           </div>
           <!-- 候補表示用3x3マス -->
           <div class="masu3x3 masu-cell-koho center-middle"
-            v-for="(_, idx) in Array(9).fill()"
+            v-for="n in numbers"
             v-bind:class="{
-              'color-koho': cell.koho.has(idx+1),
+              'color-koho': cell.koho.has(n),
+              'color-reached-koho': cell.koho.has(cell.reachedNo) && n == cell.reachedNo,
               'hidden': cell.koho.size == 9
             }">
-            {{cell.koho.has(idx+1) ? idx+1 : null}}
+            {{cell.koho.has(n) ? n : null}}
           </div>
         </div>
       </div>
@@ -67,7 +68,7 @@
           id: idx,
           value: null,
           koho: new Set(this.numbers),
-          reached: false
+          reachedNo: 0
         };
       });
       this.blocks = new Array(9).fill().map((_) => { return [] });
@@ -85,10 +86,11 @@
     },
     methods: {
       cellClick(cell) {
-        if (cell.koho.size == 1) {
-          cell.value = cell.koho.values().next().value;
+        if (cell.reachedNo) {
+          // 確定
+          cell.value = cell.reachedNo;
           cell.koho.clear();
-          cell.reached = false;
+          cell.reachedNo = 0;
         }
 
         if (this.selectedCellId === cell.id) {
@@ -100,6 +102,7 @@
       keydown(e) {
         const cell = (this.selectedCellId !== null) ? this.cells[this.selectedCellId] : null;
         if (cell && "1" <= e.key && e.key <= "9") {
+          // 数字設定
           const n = parseInt(e.key);
           if (cell.value) {
             if (inspectCells(this.cells, cell.id, n)) {
@@ -117,6 +120,7 @@
             }
           }
         } else if (e.key.startsWith("Arrow")) {
+          // 選択マス移動
           if (this.selectedCellId !== null) {
             if (e.key == "ArrowLeft") {
               this.selectedCellId += (this.selectedCellId % 9 == 0) ? +8 : -1;
@@ -132,12 +136,14 @@
             this.selectedCellId = 40;
           }
         } else if (cell && e.key == "Delete") {
+          // 数字削除
           cell.value = null;
           updateKoho(this.cells);
         } else {
         }
       },
       flashSelection() {
+        // 選択マスをピカッと
         const id = this.selectedCellId;
         this.selectedCellId = null;
         setTimeout(() => this.selectedCellId = id, 100);
@@ -147,6 +153,10 @@
 
   function xyToIndex(x, y) {
     return (y * 9) + x;
+  }
+
+  function yxToIndex(y, x) {
+    return xyToIndex(x, y);
   }
 
   function indexToX(idx) {
@@ -176,9 +186,43 @@
       for (let x = 0; x < 9; ++x) {
         const cell = cells[xyToIndex(x, y)];
         cell.koho = getKohoSet(cells, cell.id);
-        cell.reached = (cell.koho.size == 1);
+        if (cell.koho.size == 1) {
+          cell.reachedNo = cell.koho.values().next().value;
+        }
       }
     }
+
+    for (let cell of cells) {
+      cell.reachedNo = 0;
+    }
+
+    // ユニーク候補確認
+    for (let i = 0; i < 9; ++i) {
+      for (let no = 1; no <= 9; ++no) {
+        for (func of [xyToIndex, yxToIndex, blockToIndex]) {
+          foundIndex = inspectReachedNo(cells, func, i, no);
+          if (foundIndex !== null) {
+            cells[foundIndex].reachedNo = no;
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  function inspectReachedNo(cells, indexFunc, idx, no) {
+    let foundIndex = null;
+    for (let i = 0; i < 9; ++i) {
+      const cellIndex = indexFunc(idx, i);
+      if (cells[cellIndex].koho.has(no)) {
+        if (foundIndex !== null) {
+          // 同値あり
+          return null;
+        }
+        foundIndex = cellIndex;
+      }
+    }
+    return foundIndex;
   }
 
   // 指定したセルの候補を取得
@@ -202,13 +246,10 @@
     const oldValue = cells[cellIndex].value;
     cells[cellIndex].value = tryValue;
     let result = true;
-    const col = indexToX(cellIndex);
-    const row = indexToY(cellIndex);
-    const block = indexToBlock(cellIndex);
     if (
-      !inspectRow(cells, row) ||
-      !inspectCol(cells, col) ||
-      !inspectBlock(cells, block)
+      !inspectUniqueness(cells, yxToIndex, indexToY(cellIndex)) ||
+      !inspectUniqueness(cells, xyToIndex, indexToX(cellIndex)) ||
+      !inspectUniqueness(cells, blockToIndex, indexToBlock(cellIndex))
     ) {
       result = false;
     }
@@ -216,16 +257,9 @@
     return result;
   }
 
-  function inspectRow(cells, rowIndex) {
-    return !hasDuplicate(Array(9).fill().map((_, i) => cells[xyToIndex(i, rowIndex)].value));
-  }
-
-  function inspectCol(cells, colIndex) {
-    return !hasDuplicate(Array(9).fill().map((_, i) => cells[xyToIndex(colIndex, i)].value));
-  }
-
-  function inspectBlock(cells, blockIndex) {
-    return !hasDuplicate(Array(9).fill().map((_, i) => cells[blockToIndex(blockIndex, i)].value));
+  function inspectUniqueness(cells, indexFunc, idx) {
+    const values = Array(9).fill().map((_, i) => cells[indexFunc(idx, i)].value);
+    return !hasDuplicate(values);
   }
 
   function hasDuplicate(values) {

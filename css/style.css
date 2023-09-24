@@ -92,11 +92,17 @@ main>* {
 }
 
 .color-koho {
+    background-color: silver;
+}
+
+.color-reached-cell {
     background-color: pink;
 }
 
-.color-reached {
-    background-color: pink;
+.color-reached-koho {
+    background-color: black;
+    color: white;
+    opacity: 1;
 }
 
 .color-selected {
