@@ -1,6 +1,6 @@
 html {
     background-color: #eee;
-    padding: 0 calc(50% - 20rem);
+    padding: 0 calc(50% - 18rem);
 }
 
 body {
@@ -53,11 +53,10 @@ main>* {
     text-align: center;
 }
 
-.masu33 {
+.masu3x3 {
     display: grid;
     grid-template-columns: 1fr 1fr 1fr;
     grid-template-rows: 1fr 1fr 1fr;
-    aspect-ratio: 1;
 }
 
 .masu-frame {
@@ -79,9 +78,9 @@ main>* {
 }
 
 .masu-cell-koho {
-    /* border: dashed 1px #888; */
-    font-size: 0.75rem;
+    font-size: 0.5rem;
     opacity: 0.5;
+    aspect-ratio: 1;
 }
 
 .center-middle {
@@ -96,17 +95,14 @@ main>* {
     background-color: pink;
 }
 
-.color-highlight {
-    background-color: salmon;
+.color-lastone {
+    background-color: pink;
 }
 
 .color-selected {
     background-color: tomato;
 }
 
-.button {
-    background-color: #ccc;
-    border: solid 1px #888;
-    border-radius: 0.1rem;
-    margin: 0.5rem 0;
+.hidden {
+    visibility: hidden;
 }
