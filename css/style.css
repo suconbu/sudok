@@ -73,18 +73,18 @@ main>* {
     border: solid 1px #000;
 }
 
-.masu-cell-fill {
+.masu-cell-number {
     position: absolute;
     font-size: 2.5rem;
 }
 
-.masu-subcell {
+.masu-cell-koho {
     /* border: dashed 1px #888; */
     font-size: 0.75rem;
     opacity: 0.5;
 }
 
-.flex-center {
+.center-middle {
     display: flex;
     justify-content: center;
     align-items: center;
@@ -92,11 +92,15 @@ main>* {
     height: 100%;
 }
 
-.highlight {
+.color-koho {
     background-color: pink;
 }
 
-.selected {
+.color-highlight {
+    background-color: salmon;
+}
+
+.color-selected {
     background-color: tomato;
 }
 

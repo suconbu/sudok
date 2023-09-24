@@ -25,20 +25,29 @@
     </h1>
     <div class="masu33 masu-frame">
       <div class="masu33 masu-block" v-for="block in blocks">
-        <div class="masu33 masu-cell" v-for="cell in block.cells"
-          v-bind:class="{highlight: cell.ref.koho.size == 1, selected: cell.id == selectedCellId}"
+        <!-- マス -->
+        <div class="masu33 masu-cell" v-for="cell in block"
+          v-bind:class="{
+            'color-highlight': cell.koho.size == 1,
+            'color-selected': cell.id == selectedCellId
+          }"
           @click="cellClick(cell)"
           @keydown="(e) => keydown(e, cell)" tabindex="0">
-          <div class="masu-cell-fill flex-center">
-            {{cell.ref.value}}
+          <!-- マスの中の数字 -->
+          <div class="masu-cell-number center-middle">
+            {{cell.value}}
           </div>
-          <div class="masu33 masu-subcell flex-center" v-for="(_, idx) in Array(9).fill()">
-            {{cell.ref.koho.has(idx+1) ? idx+1 : null}}
+          <!-- 候補表示用3x3マス -->
+          <div class="masu33 masu-cell-koho center-middle"
+            v-for="(_, idx) in Array(9).fill()"
+            v-bind:class="{
+              'color-koho': cell.koho.has(idx+1)
+            }">
+            {{cell.koho.has(idx+1) ? idx+1 : null}}
           </div>
         </div>
       </div>
     </div>
-    <!-- <input type="button" value="やる" @click="playClick"> -->
   </main>
 
 </div>
@@ -47,39 +56,30 @@
   const app = new Vue({
     el: "#app",
     data: {
-      cellMatrix: Array(9).fill().map(() =>
-        Array(9).fill().map(() => { return {
-          value: null,
-          koho: new Set(),//Array(9).fill(false)
-        };})
-      ),
+      cells: [],
       blocks: [],
       selectedCellId: null
     },
     created() {
-      // fill() は fill(null) と同じです。
-      // 全要素をnullで初期化しています（初期値は nullでなくても undefined 以外ならOKです）。
-      // これをしておかないと全ての要素が undefined になっていて、うしろの map が回ってくれないのです。
-      for(let bi=0; bi<9; bi++) {
-        for(let ci=0; ci<9; ci++) {
-          const col = (bi % 3) * 3 + (ci % 3);
-          const row = Math.floor(bi / 3) * 3  + Math.floor(ci / 3) % 3;
-          const _ = 0;
-        }
-      }
-      this.blocks = Array(9).fill().map((_, bi) => {
+      this.cells = Array(9 * 9).fill().map((_, idx) => {
         return {
-          cells: Array(9).fill().map((_, ci) => {
-            return {
-              id: `${bi}${ci}`,
-              bi: bi,
-              ci: ci,
-              ref: getCellInMatrix(this.cellMatrix, bi, ci)
-            };
-          })
+          id: idx,
+          x: idx % 9,
+          y: Math.floor(idx / 9),
+          value: null,
+          koho: new Set()
         };
       });
-      updateKoho(this.cellMatrix);
+      this.blocks = new Array(9).fill().map((_) => { return [] });
+      this.cells.forEach((cell, idx) => {
+        // +----------------------------+
+        // | 0| 1| 2|| 3| 4| 5|| 6| 7| 8|
+        // +----------------------------+
+        // | 9|10|11||  |  |  ||  |  |  |
+        // +----------------------------+
+        this.blocks[Math.floor(idx / 3) % 3 + Math.floor(idx / (9 * 3)) * 3].push(cell);
+      });
+      updateKoho(this.cells);
     },
     methods: {
       cellClick(cell) {
@@ -92,78 +92,102 @@
       keydown(e, cell) {
         if ("1" <= e.key && e.key <= "9") {
           const n = parseInt(e.key);
-          if (cell.ref.value) {
-            const old = cell.ref.value;
-            cell.ref.value = n;
-            if (!validateMatrix(this.cellMatrix)) {
-              cell.ref.value = old;
+          if (cell.value) {
+            const old = cell.value;
+            cell.value = n;
+            if (!validateCells(this.cell)) {
+              cell.value = old;
               beep();
             }
-          } else if (cell.ref.koho.has(n)) {
-            cell.ref.value = n;
           } else {
-            // それは置けません
-            beep();
+            if (cell.koho.has(n)) {
+             cell.value = n;
+            } else {
+              // それは置けません
+              beep();
+            }
           }
         } else if (e.key == "Delete") {
-          cell.ref.value = null;
+          cell.value = null;
         } else {
         }
-        updateKoho(this.cellMatrix);
+        updateKoho(this.cells);
       },
       playClick() {
         this.selectedCellId = null;
       }
     }
   });
-  function getCellInMatrix(matrix, bi, ci) {
-    return matrix[(bi % 3) * 3 + (ci % 3)][Math.floor(bi / 3) * 3  + Math.floor(ci / 3) % 3];
+
+  function xyToIndex(x, y) {
+    return (y * 9) + x;
   }
-  function updateKoho(matrix) {
-    for (let bi = 0; bi < 9; ++bi) {
-      for (let ci = 0; ci < 9; ++ci) {
-        getCellInMatrix(matrix, bi, ci).koho = new Set(getKoho(matrix, bi, ci));
+
+  function blockToIndex(blockIndex, cellIndex) {
+    const x = Math.floor(blockIndex / 3) * 3  + Math.floor(cellIndex / 3) % 3;
+    const y = ((blockIndex % 3) * 3) + (cellIndex % 3);
+    return (y * 9) + x;
+  }
+
+  // 全セルの候補を更新
+  function updateKoho(cells) {
+    for (let y = 0; y < 9; ++y) {
+      for (let x = 0; x < 9; ++x) {
+        cells[xyToIndex(x, y)].koho = getKohoSet(cells, x, y);
       }
     }
-}
-  function getKoho(matrix, bi, ci) {
-    return Array(9).fill().map((_, n) => {
-      const cell = getCellInMatrix(matrix, bi, ci);
-      let b = false;
+  }
+
+  // 指定したセルの候補を取得
+  function getKohoSet(cells, x, y) {
+    const koho = [];
+    for (let n = 1; n <= 9; ++n) {
+      const cell = cells[xyToIndex(x, y)];
+      let valid = false;
       if (!cell.value) {
-        cell.value = n + 1;
-        b = validateMatrix(matrix);
+        cell.value = n;
+        if (validateCells(cells)) {
+          koho.push(n);
+        }
         cell.value = null;
       }
-      return b ? (n + 1) : null;
-    }).filter(_ => _);
+    }
+    return new Set(koho);
   }
-  function validateMatrix(matrix) {
+
+  // すべての行・列・ブロックに重複がいないか確認
+  // true:重複なし false:あり
+  function validateCells(cells) {
     for (let i = 0; i < 9; ++i) {
       if (
-        !validateRow(matrix, i) ||
-        !validateCol(matrix, i) ||
-        !validateBlock(matrix, i)
+        !validateRow(cells, i) ||
+        !validateCol(cells, i) ||
+        !validateBlock(cells, i)
       ) {
         return false;
       }
     }
     return true;
   }
-  function validateRow(matrix, rowIndex) {
-    return !hasDuplicate(Array(9).fill().map((_, i) => matrix[i][rowIndex].value));
+
+  function validateRow(cells, rowIndex) {
+    return !hasDuplicate(Array(9).fill().map((_, i) => cells[xyToIndex(rowIndex, i)].value));
   }
-  function validateCol(matrix, colIndex) {
-    return !hasDuplicate(Array(9).fill().map((_, i) => matrix[colIndex][i].value));
+
+  function validateCol(cells, colIndex) {
+    return !hasDuplicate(Array(9).fill().map((_, i) => cells[xyToIndex(i, colIndex)].value));
   }
-  function validateBlock(matrix, blockIndex) {
-    return !hasDuplicate(Array(9).fill().map((_, i) => getCellInMatrix(matrix, blockIndex, i).value));
+
+  function validateBlock(cells, blockIndex) {
+    return !hasDuplicate(Array(9).fill().map((_, i) => cells[blockToIndex(blockIndex, i)].value));
   }
+
   function hasDuplicate(values) {
     const a = values.filter(v => v);
     const s = new Set(a);
     return s.size != a.length;
   }
+
   function beep() {
     var snd = new Audio("data:audio/wav;base64,//uQRAAAAWMSLwUIYAAsYkXgoQwAEaYLWfkWgAI0wWs/ItAAAGDgYtAgAyN+QWaAAihwMWm4G8QQRDiMcCBcH3Cc+CDv/7xA4Tvh9Rz/y8QADBwMWgQAZG/ILNAARQ4GLTcDeIIIhxGOBAuD7hOfBB3/94gcJ3w+o5/5eIAIAAAVwWgQAVQ2ORaIQwEMAJiDg95G4nQL7mQVWI6GwRcfsZAcsKkJvxgxEjzFUgfHoSQ9Qq7KNwqHwuB13MA4a1q/DmBrHgPcmjiGoh//EwC5nGPEmS4RcfkVKOhJf+WOgoxJclFz3kgn//dBA+ya1GhurNn8zb//9NNutNuhz31f////9vt///z+IdAEAAAK4LQIAKobHItEIYCGAExBwe8jcToF9zIKrEdDYIuP2MgOWFSE34wYiR5iqQPj0JIeoVdlG4VD4XA67mAcNa1fhzA1jwHuTRxDUQ//iYBczjHiTJcIuPyKlHQkv/LHQUYkuSi57yQT//uggfZNajQ3Vmz+Zt//+mm3Wm3Q576v////+32///5/EOgAAADVghQAAAAA//uQZAUAB1WI0PZugAAAAAoQwAAAEk3nRd2qAAAAACiDgAAAAAAABCqEEQRLCgwpBGMlJkIz8jKhGvj4k6jzRnqasNKIeoh5gI7BJaC1A1AoNBjJgbyApVS4IDlZgDU5WUAxEKDNmmALHzZp0Fkz1FMTmGFl1FMEyodIavcCAUHDWrKAIA4aa2oCgILEBupZgHvAhEBcZ6joQBxS76AgccrFlczBvKLC0QI2cBoCFvfTDAo7eoOQInqDPBtvrDEZBNYN5xwNwxQRfw8ZQ5wQVLvO8OYU+mHvFLlDh05Mdg7BT6YrRPpCBznMB2r//xKJjyyOh+cImr2/4doscwD6neZjuZR4AgAABYAAAABy1xcdQtxYBYYZdifkUDgzzXaXn98Z0oi9ILU5mBjFANmRwlVJ3/6jYDAmxaiDG3/6xjQQCCKkRb/6kg/wW+kSJ5//rLobkLSiKmqP/0ikJuDaSaSf/6JiLYLEYnW/+kXg1WRVJL/9EmQ1YZIsv/6Qzwy5qk7/+tEU0nkls3/zIUMPKNX/6yZLf+kFgAfgGyLFAUwY//uQZAUABcd5UiNPVXAAAApAAAAAE0VZQKw9ISAAACgAAAAAVQIygIElVrFkBS+Jhi+EAuu+lKAkYUEIsmEAEoMeDmCETMvfSHTGkF5RWH7kz/ESHWPAq/kcCRhqBtMdokPdM7vil7RG98A2sc7zO6ZvTdM7pmOUAZTnJW+NXxqmd41dqJ6mLTXxrPpnV8avaIf5SvL7pndPvPpndJR9Kuu8fePvuiuhorgWjp7Mf/PRjxcFCPDkW31srioCExivv9lcwKEaHsf/7ow2Fl1T/9RkXgEhYElAoCLFtMArxwivDJJ+bR1HTKJdlEoTELCIqgEwVGSQ+hIm0NbK8WXcTEI0UPoa2NbG4y2K00JEWbZavJXkYaqo9CRHS55FcZTjKEk3NKoCYUnSQ0rWxrZbFKbKIhOKPZe1cJKzZSaQrIyULHDZmV5K4xySsDRKWOruanGtjLJXFEmwaIbDLX0hIPBUQPVFVkQkDoUNfSoDgQGKPekoxeGzA4DUvnn4bxzcZrtJyipKfPNy5w+9lnXwgqsiyHNeSVpemw4bWb9psYeq//uQZBoABQt4yMVxYAIAAAkQoAAAHvYpL5m6AAgAACXDAAAAD59jblTirQe9upFsmZbpMudy7Lz1X1DYsxOOSWpfPqNX2WqktK0DMvuGwlbNj44TleLPQ+Gsfb+GOWOKJoIrWb3cIMeeON6lz2umTqMXV8Mj30yWPpjoSa9ujK8SyeJP5y5mOW1D6hvLepeveEAEDo0mgCRClOEgANv3B9a6fikgUSu/DmAMATrGx7nng5p5iimPNZsfQLYB2sDLIkzRKZOHGAaUyDcpFBSLG9MCQALgAIgQs2YunOszLSAyQYPVC2YdGGeHD2dTdJk1pAHGAWDjnkcLKFymS3RQZTInzySoBwMG0QueC3gMsCEYxUqlrcxK6k1LQQcsmyYeQPdC2YfuGPASCBkcVMQQqpVJshui1tkXQJQV0OXGAZMXSOEEBRirXbVRQW7ugq7IM7rPWSZyDlM3IuNEkxzCOJ0ny2ThNkyRai1b6ev//3dzNGzNb//4uAvHT5sURcZCFcuKLhOFs8mLAAEAt4UWAAIABAAAAAB4qbHo0tIjVkUU//uQZAwABfSFz3ZqQAAAAAngwAAAE1HjMp2qAAAAACZDgAAAD5UkTE1UgZEUExqYynN1qZvqIOREEFmBcJQkwdxiFtw0qEOkGYfRDifBui9MQg4QAHAqWtAWHoCxu1Yf4VfWLPIM2mHDFsbQEVGwyqQoQcwnfHeIkNt9YnkiaS1oizycqJrx4KOQjahZxWbcZgztj2c49nKmkId44S71j0c8eV9yDK6uPRzx5X18eDvjvQ6yKo9ZSS6l//8elePK/Lf//IInrOF/FvDoADYAGBMGb7FtErm5MXMlmPAJQVgWta7Zx2go+8xJ0UiCb8LHHdftWyLJE0QIAIsI+UbXu67dZMjmgDGCGl1H+vpF4NSDckSIkk7Vd+sxEhBQMRU8j/12UIRhzSaUdQ+rQU5kGeFxm+hb1oh6pWWmv3uvmReDl0UnvtapVaIzo1jZbf/pD6ElLqSX+rUmOQNpJFa/r+sa4e/pBlAABoAAAAA3CUgShLdGIxsY7AUABPRrgCABdDuQ5GC7DqPQCgbbJUAoRSUj+NIEig0YfyWUho1VBBBA//uQZB4ABZx5zfMakeAAAAmwAAAAF5F3P0w9GtAAACfAAAAAwLhMDmAYWMgVEG1U0FIGCBgXBXAtfMH10000EEEEEECUBYln03TTTdNBDZopopYvrTTdNa325mImNg3TTPV9q3pmY0xoO6bv3r00y+IDGid/9aaaZTGMuj9mpu9Mpio1dXrr5HERTZSmqU36A3CumzN/9Robv/Xx4v9ijkSRSNLQhAWumap82WRSBUqXStV/YcS+XVLnSS+WLDroqArFkMEsAS+eWmrUzrO0oEmE40RlMZ5+ODIkAyKAGUwZ3mVKmcamcJnMW26MRPgUw6j+LkhyHGVGYjSUUKNpuJUQoOIAyDvEyG8S5yfK6dhZc0Tx1KI/gviKL6qvvFs1+bWtaz58uUNnryq6kt5RzOCkPWlVqVX2a/EEBUdU1KrXLf40GoiiFXK///qpoiDXrOgqDR38JB0bw7SoL+ZB9o1RCkQjQ2CBYZKd/+VJxZRRZlqSkKiws0WFxUyCwsKiMy7hUVFhIaCrNQsKkTIsLivwKKigsj8XYlwt/WKi2N4d//uQRCSAAjURNIHpMZBGYiaQPSYyAAABLAAAAAAAACWAAAAApUF/Mg+0aohSIRobBAsMlO//Kk4soosy1JSFRYWaLC4qZBYWFRGZdwqKiwkNBVmoWFSJkWFxX4FFRQWR+LsS4W/rFRb/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////VEFHAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAU291bmRib3kuZGUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMjAwNGh0dHA6Ly93d3cuc291bmRib3kuZGUAAAAAAAAAACU=");  
     snd.play();
