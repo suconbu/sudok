@@ -91,7 +91,8 @@
       blocks: [],
       numbers: [1, 2, 3, 4, 5, 6, 7, 8, 9],
       selectedCellIndex: null,
-      inputCell: null
+      inputCell: null,
+      tapped: false
     },
     created() {
       this.cells = Array(9 * 9).fill().map((_, idx) => {
@@ -121,22 +122,26 @@
       }
     },
     methods: {
-      cellTouch(cell, showNumpad) {
+      cellTouch(cell, byTap) {
         if (cell.reachedNo) {
-          // 確定
+          // リーチしてるマスを確定
           cell.value = cell.reachedNo;
           cell.koho.clear();
           cell.reachedNo = 0;
         } else {
-          if (showNumpad) {
-            this.inputCell = cell;
+          if (byTap) {
+            setTimeout(() => { this.inputCell = cell; }, 100);
+            // Androidはtouchstartとmousedownのどちらも来るので
+            this.tapped = true;
           }
         }
 
-        if (this.selectedCellIndex === cell.index) {
-          this.selectedCellIndex = null;
-        } else {
-          this.selectedCellIndex = cell.index;
+        if (!byTap && !this.tapped) {
+          if (this.selectedCellIndex === cell.index) {
+            this.selectedCellIndex = null;
+          } else {
+            this.selectedCellIndex = cell.index;
+          }
         }
       },
       setCellValue(cell, no) {
