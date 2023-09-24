@@ -138,6 +138,8 @@
           // 数字削除
           cell.value = null;
           updateKoho(this.cells);
+        } else if (e.key == "Escape") {
+          this.selectedCellIndex = null;
         } else {
         }
       },
