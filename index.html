@@ -31,8 +31,8 @@
             'color-reached-cell': cell.reachedNo != 0,
             'color-selected': cell.index == selectedCellIndex
           }"
-          @touchstart="cellTouch(cell, true)"
-          @mousedown="cellTouch(cell, false)">
+          @touchend="cellTouched(cell, true)"
+          @click="cellTouched(cell, false)">
           <!-- マスの中の数字 -->
           <div class="masu-cell-number center-middle">
             {{cell.value}}
@@ -68,13 +68,13 @@
             v-for="no in numbers"
             :value="no"
             :disabled="!inputCell.value && !inputCell.koho.has(no)"
-            @click="clickInputButton(no)">
+            @click="inputButtonClicked(no)">
         </div>
           <!-- 削除ボタン -->
           <input type="button" class="popup-button-delete"
             value="削除"
             :disabled="!inputCell.value"
-            @click="clickInputButton(null)">
+            @click="inputButtonClicked(null)">
         <div class="popup-close-box" @click="closeInputPopup">
           <div class="popup-close">✖</div>
         </div>
@@ -122,7 +122,7 @@
       }
     },
     methods: {
-      cellTouch(cell, byTap) {
+      cellTouched(cell, byTap) {
         if (cell.reachedNo) {
           // リーチしてるマスを確定
           cell.value = cell.reachedNo;
@@ -219,7 +219,7 @@
       closeInputPopup() {
         this.inputCell = null;
       },
-      clickInputButton(no) {
+      inputButtonClicked(no) {
         if (this.inputCell) {
           this.inputCell.value = no;
           updateKoho(this.cells);
