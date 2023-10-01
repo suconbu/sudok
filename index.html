@@ -50,8 +50,11 @@
         </div>
       </div>
     </div>
-    <div class="title-reward"
-      :class="{'title-reward-transition': isFinished}">
+    <div class="stepcount-container">
+      <div class="stepcount-text">{{stepCount}}手目</div>
+      <input class="stepcount-button" type="button" value="一手戻る" @click="undo()">
+    </div>
+    <div class="title-reward" :class="{'title-reward-transition': isFinished}">
       🎍🎉🎊よくできました💮👏🌻
     </div>
   </main>
@@ -92,7 +95,9 @@
       numbers: [1, 2, 3, 4, 5, 6, 7, 8, 9],
       selectedCellIndex: null,
       inputCell: null,
-      tapped: false
+      tapped: false,
+      undoStack: [],
+      stepCount: 0
     },
     created() {
       this.cells = Array(9 * 9).fill().map((_, idx) => {
@@ -125,10 +130,7 @@
       cellTouched(cell, byTap) {
         if (cell.reachedNo) {
           // リーチしてるマスを確定
-          cell.value = cell.reachedNo;
-          cell.koho.clear();
-          cell.reachedNo = 0;
-          updateKoho(this.cells);
+          this.setCellValue(cell, cell.reachedNo);
         } else {
           if (byTap) {
             setTimeout(() => { this.inputCell = cell; }, 100);
@@ -146,19 +148,14 @@
         }
       },
       setCellValue(cell, no) {
-        let result = false;
-        if (cell.value) {
-          if (inspectCells(this.cells, cell.index, n)) {
-            cell.value = no;
-            result = true;
-          }
-        } else {
-          if (cell.koho.has(no)) {
-            cell.value = no;
-            result = true;
-          }
-        }
-        return result;
+        this.undoStack.push({
+          index: cell.index,
+          prev: cell.value,
+          next: no
+        });
+        cell.value = no;
+        updateKoho(this.cells);
+        this.stepCount += 1;
       },
       keydown(e) {
         const cell = (this.selectedCellIndex !== null) ? this.cells[this.selectedCellIndex] : null;
@@ -177,8 +174,7 @@
           }
 
           if (allow) {
-            cell.value = no;
-            updateKoho(this.cells);
+            this.setCellValue(cell, no);
           } else {
             this.flashSelection();
           }
@@ -200,11 +196,25 @@
           }
         } else if (cell && e.key == "Delete") {
           // 数字削除
-          cell.value = null;
-          updateKoho(this.cells);
+          if (cell.value) {
+            this.setCellValue(cell, null);
+          }
         } else if (e.key == "Escape") {
           this.selectedCellIndex = null;
+        } else if (e.key == "u") {
+          this.undo();
         } else {
+        }
+      },
+      undo() {
+        if (0 < this.undoStack.length) {
+          const undo = this.undoStack.pop();
+          this.cells[undo.index].value = undo.prev;
+          if (this.selectedCellIndex) {
+            this.selectedCellIndex = undo.index;
+          }
+          updateKoho(this.cells);
+          this.stepCount -= 1;
         }
       },
       flashSelection() {
@@ -221,8 +231,7 @@
       },
       inputButtonClicked(no) {
         if (this.inputCell) {
-          this.inputCell.value = no;
-          updateKoho(this.cells);
+          this.setCellValue(this.inputCell, no);
         }
         this.inputCell = null;
       }

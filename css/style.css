@@ -37,7 +37,7 @@ main {
 
 main>* {
     margin: 0;
-    margin-bottom: 1.0rem;
+    margin-bottom: 0.5rem;
 }
 
 .title {
@@ -104,6 +104,20 @@ main>* {
     display: flex;
     justify-content: center;
     align-items: center;
+}
+
+.stepcount-container {
+    display: flex;
+    justify-content: right;
+    align-items: center;
+}
+
+.stepcount-text {
+    margin: 0 0.5rem;
+}
+
+.stepcount-button {
+    padding: 0.2rem 0.5rem;
 }
 
 .color-koho {
