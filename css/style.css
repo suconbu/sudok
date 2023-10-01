@@ -106,18 +106,23 @@ main>* {
     align-items: center;
 }
 
-.stepcount-container {
+.bottom-container {
     display: flex;
     justify-content: right;
     align-items: center;
+    width: 100%;
 }
 
 .stepcount-text {
     margin: 0 0.5rem;
 }
 
-.stepcount-button {
+.bottom-button {
     padding: 0.2rem 0.5rem;
+}
+
+.hint-button {
+    margin-right: auto;
 }
 
 .color-koho {

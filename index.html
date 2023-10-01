@@ -28,7 +28,7 @@
         <!-- マス -->
         <div class="masu3x3 masu-cell" v-for="cell in block"
           v-bind:class="{
-            'color-reached-cell': cell.reachedNo != 0,
+            'color-reached-cell': cell.reachedNo != 0 && (cell.koho.size == 1 || reachedKohoVisible),
             'color-selected': cell.index == selectedCellIndex
           }"
           @touchend="cellTouched(cell, true)"
@@ -42,7 +42,7 @@
             v-for="n in numbers"
             v-bind:class="{
               'color-koho': cell.koho.has(n),
-              'color-reached-koho': cell.koho.has(cell.reachedNo) && n == cell.reachedNo,
+              'color-reached-koho': cell.koho.has(cell.reachedNo) && n == cell.reachedNo && reachedKohoVisible,
               'hidden': cell.koho.size == 9
             }">
             {{cell.koho.has(n) ? n : null}}
@@ -50,9 +50,15 @@
         </div>
       </div>
     </div>
-    <div class="stepcount-container">
+    <div class="bottom-container">
+      <input class="bottom-button hint-button" type="button"
+        :value="hintCount == 0 ? 'ヒント' : `ヒント (${hintCount}回)`"
+        @touchstart="hintTouched(true, true)"
+        @touchend="hintTouched(false, true)"
+        @mousedown="hintTouched(true, false)"
+        @mouseup="hintTouched(false, false)">
       <div class="stepcount-text">{{stepCount}}手目</div>
-      <input class="stepcount-button" type="button" value="一手戻る" @click="undo()">
+      <input class="bottom-button" type="button" value="一手戻る" @click="undo()">
     </div>
     <div class="title-reward" :class="{'title-reward-transition': isFinished}">
       🎍🎉🎊よくできました💮👏🌻
@@ -97,7 +103,9 @@
       inputCell: null,
       tapped: false,
       undoStack: [],
-      stepCount: 0
+      stepCount: 0,
+      hintCount: 0,
+      reachedKohoVisible: false,
     },
     created() {
       this.cells = Array(9 * 9).fill().map((_, idx) => {
@@ -150,8 +158,7 @@
       setCellValue(cell, no) {
         this.undoStack.push({
           index: cell.index,
-          prev: cell.value,
-          next: no
+          value: cell.value
         });
         cell.value = no;
         updateKoho(this.cells);
@@ -209,12 +216,25 @@
       undo() {
         if (0 < this.undoStack.length) {
           const undo = this.undoStack.pop();
-          this.cells[undo.index].value = undo.prev;
+          this.cells[undo.index].value = undo.value;
           if (this.selectedCellIndex) {
             this.selectedCellIndex = undo.index;
           }
           updateKoho(this.cells);
           this.stepCount -= 1;
+        }
+      },
+      hintTouched(visible, byTap) {
+        if (byTap) {
+          this.tapped = true;
+        }
+
+        if (byTap == this.tapped) {
+            // Androidはtouchstartとmousedownのどちらも来るので
+            if (!this.reachedKohoVisible && visible) {
+            this.hintCount += 1;
+          }
+          this.reachedKohoVisible = visible;
         }
       },
       flashSelection() {
