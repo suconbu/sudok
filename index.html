@@ -259,6 +259,11 @@
 
   // 全セルの候補を更新
   function updateKoho(cells) {
+
+    for (let cell of cells) {
+      cell.reachedNo = 0;
+    }
+
     // 候補更新
     for (let y = 0; y < 9; ++y) {
       for (let x = 0; x < 9; ++x) {
@@ -268,10 +273,6 @@
           cell.reachedNo = cell.koho.values().next().value;
         }
       }
-    }
-
-    for (let cell of cells) {
-      cell.reachedNo = 0;
     }
 
     // ユニーク候補確認
