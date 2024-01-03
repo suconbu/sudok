@@ -84,11 +84,14 @@
   </main>
 
   <transition name="popup">
-    <div class="popup-fill" v-if="isFinished" @click="closeInputPopup">
+    <div class="popup-fill" v-if="isFinished && !popupClosed" @click="closeInputPopup">
       <div class="popup-window" tabindex="0" ref="popupWindow" @click="dummy">
         <div class="title-reward">
           🎍🎉🎊よくできました💮👏🌻
         </div>
+        <p>
+          ヒント使用回数：{{hintCount}}回
+        </p>
         <div class="popup-close-box" @click="closeInputPopup">
           <div class="popup-close">✖</div>
         </div>
@@ -113,7 +116,8 @@
       reachedKohoVisible: false,
       longPressTimeout: null,
       hintNo: null,
-      stepCountMemory: null
+      stepCountMemory: null,
+      popupClosed: false,
     },
     created() {
       this.cells = Array(9 * 9).fill().map((_, idx) => {
@@ -253,7 +257,7 @@
           e.stopPropagation();
       },
       closeInputPopup() {
-        this.inputCell = null;
+        this.popupClosed = true;
       },
       inputButtonClicked(no) {
         if (this.inputCell) {
