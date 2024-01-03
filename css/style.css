@@ -107,6 +107,10 @@ main>* {
     width: 100%;
 }
 
+.status-text {
+    margin: 0 0.5rem;
+}
+
 .stepcount-text {
     margin: 0 0.5rem;
 }

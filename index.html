@@ -55,15 +55,19 @@
     <div class="bottom-container">
       <input class="bottom-button hint-button" type="button"
         value="ヒント"
+        :disabled="startedAt == null"
         @touchstart="hintTouched(true, true)"
         @touchend="tappable=true; hintTouched(false, true)"
         @mousedown="hintTouched(true, false)"
         @mouseup="hintTouched(false, false)">
+      <div class="status-text"v-if="startedAt == null">問題入力中</div>
       <div class="stepcount-text"
+        v-if="startedAt != null"
         @click="toggleStepCountMemory(stepCount)">
         {{stepCountMemory != null ? `(${stepCountMemory}手目) ` : ""}}{{stepCount}}手目
       </div>
-      <input class="bottom-button" type="button" value="一手戻る" @click="undo()">
+      <input class="bottom-button" v-if="startedAt == null" type="button" value="開始" @click="start()">
+      <input class="bottom-button" v-if="startedAt != null" type="button" value="一手戻る" @click="undo()" :disabled="stepCount == 0">
     </div>
     <!-- キーパッド -->
     <div class="keypad-container">
@@ -90,6 +94,7 @@
           🎍🎉🎊よくできました💮👏🌻
         </div>
         <p>
+          所要時間：{{formatTime((Date.now() - startedAt) / 1000)}}<br>
           ヒント使用回数：{{hintCount}}回
         </p>
         <div class="popup-close-box" @click="closeInputPopup">
@@ -118,6 +123,7 @@
       hintNo: null,
       stepCountMemory: null,
       popupClosed: false,
+      startedAt: null,
     },
     created() {
       this.cells = Array(9 * 9).fill().map((_, idx) => {
@@ -164,13 +170,15 @@
         }
       },
       setCellValue(cell, no) {
-        this.undoStack.push({
-          index: cell.index,
-          value: cell.value
-        });
+        if (this.startedAt != null) {
+          this.undoStack.push({
+            index: cell.index,
+            value: cell.value
+          });
+          this.stepCount += 1;
+        }
         cell.value = no;
         updateKoho(this.cells);
-        this.stepCount += 1;
       },
       keydown(e) {
         const cell = (this.selectedCellIndex !== null) ? this.cells[this.selectedCellIndex] : null;
@@ -221,6 +229,9 @@
         } else {
         }
       },
+      start() {
+        this.startedAt = Date.now();
+      },
       undo() {
         if (0 < this.undoStack.length) {
           const undo = this.undoStack.pop();
@@ -230,7 +241,7 @@
           }
           updateKoho(this.cells);
           this.stepCount -= 1;
-          if (this.stepCount == this.stepCountMemory) {
+          if (this.stepCount <= this.stepCountMemory) {
             this.stepCountMemory = null;
           }
         }
@@ -265,6 +276,9 @@
         }
       },
       inputButtonPress(no) {
+        if (this.startedAt == null) {
+          return;
+        }
         if (this.longPressTimeout) {
           clearTimeout(this.longPressTimeout);
         }
@@ -284,6 +298,9 @@
         } else {
           this.stepCountMemory = null;
         }
+      },
+      formatTime(seconds) {
+        return `${Math.floor(seconds / 60)}分${Math.floor(seconds % 60)}秒`;
       }
     }
   });
