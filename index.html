@@ -28,10 +28,10 @@
         <!-- マス -->
         <div class="masu3x3 masu-cell" v-for="cell in block"
           v-bind:class="{
-            'color-reached-cell': cell.reachedNo != 0 && (cell.koho.size == 1 || reachedKohoVisible),
+            'color-reached-cell': hintNo == null && cell.reachedNo != 0 && (cell.koho.size == 1 || reachedKohoVisible),
             'color-hint-no': hintNo != null && cell.value == hintNo,
             'color-hint-cell': hintNo != null && cell.value == null && cell.koho.has(hintNo),
-            'color-selected':hintNo == null && cell == selectedCell
+            'color-selected': hintNo == null && cell == selectedCell
           }"
           @touchend="tappable=true; cellTouched(cell, true)"
           @click="cellTouched(cell, false)">
@@ -45,7 +45,7 @@
             v-bind:class="{
               'color-koho': cell.koho.has(n),
               'color-reached-koho': cell.koho.has(cell.reachedNo) && n == cell.reachedNo && reachedKohoVisible,
-              'hidden': cell.koho.size == 9
+              'hidden': startedAt == null || cell.koho.size == 9
             }">
             {{cell.koho.has(n) ? n : null}}
           </div>
@@ -53,14 +53,14 @@
       </div>
     </div>
     <div class="bottom-container">
-      <input class="bottom-button hint-button" type="button"
+      <input class="bottom-button" type="button"
         value="ヒント"
         :disabled="startedAt == null"
         @touchstart="hintTouched(true, true)"
         @touchend="tappable=true; hintTouched(false, true)"
         @mousedown="hintTouched(true, false)"
         @mouseup="hintTouched(false, false)">
-      <div class="status-text"v-if="startedAt == null">問題入力中</div>
+      <div class="status-text">{{statusText}}</div>
       <div class="stepcount-text"
         v-if="startedAt != null"
         @click="toggleStepCountMemory(stepCount)">
@@ -74,14 +74,14 @@
       <input type="button" class="keypad-button-number center-middle"
         v-for="no in numbers"
         :value="no"
-        :disabled="selectedCell == null || (!selectedCell.value && !selectedCell.koho.has(no))"
+        :disabled="!inputButtonEnabled(no)"
         @click="inputButtonClicked(no)"
         @touchstart="inputButtonPress(no)"
         @touchend="inputButtonRelease(no)">
       <div></div>
       <input type="button" class="keypad-button-delete"
         value="削除"
-        :disabled="selectedCell == null || !selectedCell.value"
+        :disabled="!deleteButtonEnabled()"
         @click="inputButtonClicked(null)">
       <div></div>
     </div>
@@ -122,13 +122,14 @@
       hintNo: null,
       stepCountMemory: null,
       popupClosed: false,
-      startedAt: null,
+      startedAt: null
     },
     created() {
       this.cells = Array(9 * 9).fill().map((_, idx) => {
         return {
           index: idx,
           value: null,
+          fixed: false,
           koho: new Set(this.numbers),
           reachedNo: 0
         };
@@ -149,6 +150,11 @@
     computed: {
       isFinished() {
         return this.cells.every((cell) => cell.value);
+      },
+      statusText() {
+        return (this.startedAt == null) ? "問題入力中" :
+          (this.selectedCell.fixed) ? "変更不可" :
+          null;
       }
     },
     methods: {
@@ -167,7 +173,9 @@
         }
       },
       setCellValue(cell, no) {
-        if (this.startedAt != null) {
+        if (this.startedAt == null) {
+          cell.fixed = (no != null);
+        } else {
           this.undoStack.push({
             index: cell.index,
             value: cell.value
@@ -183,8 +191,10 @@
           // 数字設定
           const no = parseInt(e.key);
           let allow = false;
-          if (cell.value) {
-            if (inspectCells(this.cells, cell.index, no)) {
+          if (cell.fixed && this.startedAt != null) {
+            allow = false;
+          } else if (cell.value != null) {
+            if (cell.value != no && inspectCells(this.cells, cell.index, no)) {
               allow = true;
             }
           } else {
@@ -219,7 +229,7 @@
           }
         } else if (cell && e.key == "Delete") {
           // 数字削除
-          if (cell.value) {
+          if (cell.value && !(cell.fixed && this.startedAt != null)) {
             this.setCellValue(cell, null);
           }
         } else if (e.key == "Escape") {
@@ -270,9 +280,27 @@
       closeInputPopup() {
         this.popupClosed = true;
       },
+      inputButtonEnabled(no) {
+        if (this.selectedCell != null) {
+          if (this.selectedCell.fixed && this.startedAt != null) { return false; }
+          if (this.selectedCell.value || this.selectedCell.koho.has(no)) { return true; }
+        }
+        return false;
+      },
+      deleteButtonEnabled() {
+        if (this.selectedCell != null) {
+          if (this.selectedCell.fixed && this.startedAt != null) { return false; }
+          if (this.selectedCell.value != null) { return true; }
+        }
+         return false;
+      },
       inputButtonClicked(no) {
         if (this.selectedCell) {
-          this.setCellValue(this.selectedCell, no);
+          if (this.selectedCell.value != no && inspectCells(this.cells, this.selectedCell.index, no)) {
+            this.setCellValue(this.selectedCell, no);
+          } else {
+            this.flashSelection();
+          }
         }
       },
       inputButtonPress(no) {

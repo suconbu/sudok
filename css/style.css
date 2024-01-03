@@ -108,7 +108,7 @@ main>* {
 }
 
 .status-text {
-    margin: 0 0.5rem;
+    margin: 0 auto;
 }
 
 .stepcount-text {
@@ -117,10 +117,6 @@ main>* {
 
 .bottom-button {
     padding: 0.2rem 0.5rem;
-}
-
-.hint-button {
-    margin-right: auto;
 }
 
 .keypad-container {
