@@ -59,7 +59,10 @@
         @touchend="tappable=true; hintTouched(false, true)"
         @mousedown="hintTouched(true, false)"
         @mouseup="hintTouched(false, false)">
-      <div class="stepcount-text">{{stepCount}}手目</div>
+      <div class="stepcount-text"
+        @click="toggleStepCountMemory(stepCount)">
+        {{stepCountMemory != null ? `(${stepCountMemory}手目) ` : ""}}{{stepCount}}手目
+      </div>
       <input class="bottom-button" type="button" value="一手戻る" @click="undo()">
     </div>
     <!-- キーパッド -->
@@ -110,6 +113,7 @@
       reachedKohoVisible: false,
       longPressTimeout: null,
       hintNo: null,
+      stepCountMemory: null
     },
     created() {
       this.cells = Array(9 * 9).fill().map((_, idx) => {
@@ -222,6 +226,9 @@
           }
           updateKoho(this.cells);
           this.stepCount -= 1;
+          if (this.stepCount == this.stepCountMemory) {
+            this.stepCountMemory = null;
+          }
         }
       },
       hintTouched(visible, byTap) {
@@ -266,6 +273,13 @@
         clearTimeout(this.longPressTimeout);
         this.longPressTimeout = null;
         this.hintNo = null;
+      },
+      toggleStepCountMemory(stepCount) {
+        if (this.stepCountMemory == null) {
+          this.stepCountMemory = stepCount;
+        } else {
+          this.stepCountMemory = null;
+        }
       }
     }
   });
