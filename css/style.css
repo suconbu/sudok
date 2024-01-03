@@ -160,6 +160,16 @@ main>* {
     background-color: tomato;
 }
 
+.color-hint-no {
+    background-color: black;
+    color: white;
+    opacity: 1;
+}
+
+.color-hint-cell {
+    background-color: pink;
+}
+
 .hidden {
     visibility: hidden;
 }

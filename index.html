@@ -29,7 +29,9 @@
         <div class="masu3x3 masu-cell" v-for="cell in block"
           v-bind:class="{
             'color-reached-cell': cell.reachedNo != 0 && (cell.koho.size == 1 || reachedKohoVisible),
-            'color-selected': cell.index == selectedCellIndex
+            'color-hint-no': hintNo != null && cell.value == hintNo,
+            'color-hint-cell': hintNo != null && cell.value == null && cell.koho.has(hintNo),
+            'color-selected':hintNo == null &&  cell.index == selectedCellIndex
           }"
           @touchend="tappable=true; cellTouched(cell, true)"
           @click="cellTouched(cell, false)">
@@ -52,7 +54,7 @@
     </div>
     <div class="bottom-container">
       <input class="bottom-button hint-button" type="button"
-        :value="hintCount == 0 ? 'ヒント' : `ヒント (${hintCount}回)`"
+        value="ヒント"
         @touchstart="hintTouched(true, true)"
         @touchend="tappable=true; hintTouched(false, true)"
         @mousedown="hintTouched(true, false)"
@@ -66,7 +68,9 @@
         v-for="no in numbers"
         :value="no"
         :disabled="!inputCell || (!inputCell.value && !inputCell.koho.has(no))"
-        @click="inputButtonClicked(no)">
+        @click="inputButtonClicked(no)"
+        @touchstart="inputButtonPress(no)"
+        @touchend="inputButtonRelease(no)">
       <div></div>
       <input type="button" class="keypad-button-delete"
         value="削除"
@@ -104,6 +108,8 @@
       stepCount: 0,
       hintCount: 0,
       reachedKohoVisible: false,
+      longPressTimeout: null,
+      hintNo: null,
     },
     created() {
       this.cells = Array(9 * 9).fill().map((_, idx) => {
@@ -224,8 +230,7 @@
         }
 
         if (byTap == this.tappable) {
-            // Androidはtouchstartとmousedownのどちらも来るので
-            if (!this.reachedKohoVisible && visible) {
+          if (!this.reachedKohoVisible && visible) {
             this.hintCount += 1;
           }
           this.reachedKohoVisible = visible;
@@ -247,6 +252,20 @@
         if (this.inputCell) {
           this.setCellValue(this.inputCell, no);
         }
+      },
+      inputButtonPress(no) {
+        if (this.longPressTimeout) {
+          clearTimeout(this.longPressTimeout);
+        }
+        this.longPressTimeout = setTimeout(() => {
+          this.hintNo = no;
+          this.hintCount += 1;
+        }, 500);
+      },
+      inputButtonRelease(no) {
+        clearTimeout(this.longPressTimeout);
+        this.longPressTimeout = null;
+        this.hintNo = null;
       }
     }
   });
