@@ -31,7 +31,7 @@
             'color-reached-cell': cell.reachedNo != 0 && (cell.koho.size == 1 || reachedKohoVisible),
             'color-hint-no': hintNo != null && cell.value == hintNo,
             'color-hint-cell': hintNo != null && cell.value == null && cell.koho.has(hintNo),
-            'color-selected':hintNo == null &&  cell.index == selectedCellIndex
+            'color-selected':hintNo == null && cell == selectedCell
           }"
           @touchend="tappable=true; cellTouched(cell, true)"
           @click="cellTouched(cell, false)">
@@ -74,14 +74,14 @@
       <input type="button" class="keypad-button-number center-middle"
         v-for="no in numbers"
         :value="no"
-        :disabled="!inputCell || (!inputCell.value && !inputCell.koho.has(no))"
+        :disabled="selectedCell == null || (!selectedCell.value && !selectedCell.koho.has(no))"
         @click="inputButtonClicked(no)"
         @touchstart="inputButtonPress(no)"
         @touchend="inputButtonRelease(no)">
       <div></div>
       <input type="button" class="keypad-button-delete"
         value="削除"
-        :disabled="!inputCell || !inputCell.value"
+        :disabled="selectedCell == null || !selectedCell.value"
         @click="inputButtonClicked(null)">
       <div></div>
     </div>
@@ -112,8 +112,7 @@
       cells: [],
       blocks: [],
       numbers: [1, 2, 3, 4, 5, 6, 7, 8, 9],
-      selectedCellIndex: null,
-      inputCell: null,
+      selectedCell: null,
       tappable: false,
       undoStack: [],
       stepCount: 0,
@@ -160,12 +159,10 @@
         }
 
         if (byTap == this.tappable) {
-          if (this.selectedCellIndex === cell.index) {
-            this.inputCell = null;
-            this.selectedCellIndex = null;
+          if (this.selectedCell == cell) {
+            this.selectedCell = null;
           } else {
-            this.inputCell = cell;
-            this.selectedCellIndex = cell.index;
+            this.selectedCell = cell;
           }
         }
       },
@@ -181,7 +178,7 @@
         updateKoho(this.cells);
       },
       keydown(e) {
-        const cell = (this.selectedCellIndex !== null) ? this.cells[this.selectedCellIndex] : null;
+        const cell = this.selectedCell;
         if (cell && "1" <= e.key && e.key <= "9") {
           // 数字設定
           const no = parseInt(e.key);
@@ -203,19 +200,22 @@
           }
         } else if (e.key.startsWith("Arrow")) {
           // 選択マス移動
-          if (this.selectedCellIndex !== null) {
+          if (this.selectedCell != null) {
+            idx = this.selectedCell.index;
             if (e.key == "ArrowLeft") {
-              this.selectedCellIndex += (this.selectedCellIndex % 9 == 0) ? +8 : -1;
+              idx += (idx % 9 == 0) ? +8 : -1;
             } else if (e.key == "ArrowRight") {
-              this.selectedCellIndex += (this.selectedCellIndex % 9 == 8) ? -8 : +1;
+              idx += (idx % 9 == 8) ? -8 : +1;
             } else if (e.key == "ArrowUp") {
-              this.selectedCellIndex += (Math.floor(this.selectedCellIndex / 9) == 0) ? +(8 * 9) : -9;
+              idx += (Math.floor(idx / 9) == 0) ? +(8 * 9) : -9;
             } else if (e.key == "ArrowDown") {
-              this.selectedCellIndex += (Math.floor(this.selectedCellIndex / 9) == 8) ? -(8 * 9) : +9;
+              idx += (Math.floor(idx / 9) == 8) ? -(8 * 9) : +9;
             } else {
             }
+            this.selectedCell = this.cells[idx];
           } else {
-            this.selectedCellIndex = 40;
+            // 未選択状態からの操作時は中央を選択
+            this.selectedCell = this.cells[40];
           }
         } else if (cell && e.key == "Delete") {
           // 数字削除
@@ -223,7 +223,7 @@
             this.setCellValue(cell, null);
           }
         } else if (e.key == "Escape") {
-          this.selectedCellIndex = null;
+          this.selectedCell = null;
         } else if (e.key == "u") {
           this.undo();
         } else {
@@ -236,12 +236,12 @@
         if (0 < this.undoStack.length) {
           const undo = this.undoStack.pop();
           this.cells[undo.index].value = undo.value;
-          if (this.selectedCellIndex) {
-            this.selectedCellIndex = undo.index;
+          if (this.selectedCell != null) {
+            this.selectedCell = this.cells[undo.index];
           }
           updateKoho(this.cells);
           this.stepCount -= 1;
-          if (this.stepCount <= this.stepCountMemory) {
+          if (this.stepCountMemory != null && this.stepCount <= this.stepCountMemory) {
             this.stepCountMemory = null;
           }
         }
@@ -260,9 +260,9 @@
       },
       flashSelection() {
         // 選択マスをピカッと
-        const idx = this.selectedCellIndex;
-        this.selectedCellIndex = null;
-        setTimeout(() => this.selectedCellIndex = idx, 100);
+        const cell = this.selectedCell;
+        this.selectedCell = null;
+        setTimeout(() => this.selectedCell = cell, 100);
       },
       dummy(e) {
           e.stopPropagation();
@@ -271,8 +271,8 @@
         this.popupClosed = true;
       },
       inputButtonClicked(no) {
-        if (this.inputCell) {
-          this.setCellValue(this.inputCell, no);
+        if (this.selectedCell) {
+          this.setCellValue(this.selectedCell, no);
         }
       },
       inputButtonPress(no) {
