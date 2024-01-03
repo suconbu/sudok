@@ -31,7 +31,7 @@
             'color-reached-cell': cell.reachedNo != 0 && (cell.koho.size == 1 || reachedKohoVisible),
             'color-selected': cell.index == selectedCellIndex
           }"
-          @touchend="cellTouched(cell, true)"
+          @touchend="tappable=true; cellTouched(cell, true)"
           @click="cellTouched(cell, false)">
           <!-- マスの中の数字 -->
           <div class="masu-cell-number center-middle">
@@ -54,36 +54,34 @@
       <input class="bottom-button hint-button" type="button"
         :value="hintCount == 0 ? 'ヒント' : `ヒント (${hintCount}回)`"
         @touchstart="hintTouched(true, true)"
-        @touchend="hintTouched(false, true)"
+        @touchend="tappable=true; hintTouched(false, true)"
         @mousedown="hintTouched(true, false)"
         @mouseup="hintTouched(false, false)">
       <div class="stepcount-text">{{stepCount}}手目</div>
       <input class="bottom-button" type="button" value="一手戻る" @click="undo()">
     </div>
-    <div class="title-reward" :class="{'title-reward-transition': isFinished}">
-      🎍🎉🎊よくできました💮👏🌻
+    <!-- キーパッド -->
+    <div class="keypad-container">
+      <input type="button" class="keypad-button-number center-middle"
+        v-for="no in numbers"
+        :value="no"
+        :disabled="!inputCell || (!inputCell.value && !inputCell.koho.has(no))"
+        @click="inputButtonClicked(no)">
+      <div></div>
+      <input type="button" class="keypad-button-delete"
+        value="削除"
+        :disabled="!inputCell || !inputCell.value"
+        @click="inputButtonClicked(null)">
+      <div></div>
     </div>
   </main>
 
   <transition name="popup">
-    <div class="popup-fill" v-if="inputCell" @click="closeInputPopup">
+    <div class="popup-fill" v-if="isFinished" @click="closeInputPopup">
       <div class="popup-window" tabindex="0" ref="popupWindow" @click="dummy">
-        <div class="popup-text">
-          {{inputCell.value ? `今の数字は ${inputCell.value} です。` : `空のマスです。`}}
+        <div class="title-reward">
+          🎍🎉🎊よくできました💮👏🌻
         </div>
-        <div class="popup-button-container">
-          <!-- 数字ボタン -->
-          <input type="button" class="popup-button-number center-middle"
-            v-for="no in numbers"
-            :value="no"
-            :disabled="!inputCell.value && !inputCell.koho.has(no)"
-            @click="inputButtonClicked(no)">
-        </div>
-          <!-- 削除ボタン -->
-          <input type="button" class="popup-button-delete"
-            value="削除"
-            :disabled="!inputCell.value"
-            @click="inputButtonClicked(null)">
         <div class="popup-close-box" @click="closeInputPopup">
           <div class="popup-close">✖</div>
         </div>
@@ -101,7 +99,7 @@
       numbers: [1, 2, 3, 4, 5, 6, 7, 8, 9],
       selectedCellIndex: null,
       inputCell: null,
-      tapped: false,
+      tappable: false,
       undoStack: [],
       stepCount: 0,
       hintCount: 0,
@@ -139,18 +137,14 @@
         if (cell.reachedNo) {
           // リーチしてるマスを確定
           this.setCellValue(cell, cell.reachedNo);
-        } else {
-          if (byTap) {
-            setTimeout(() => { this.inputCell = cell; }, 100);
-            // Androidはtouchstartとmousedownのどちらも来るので
-            this.tapped = true;
-          }
         }
 
-        if (!byTap && !this.tapped) {
+        if (byTap == this.tappable) {
           if (this.selectedCellIndex === cell.index) {
+            this.inputCell = null;
             this.selectedCellIndex = null;
           } else {
+            this.inputCell = cell;
             this.selectedCellIndex = cell.index;
           }
         }
@@ -226,10 +220,10 @@
       },
       hintTouched(visible, byTap) {
         if (byTap) {
-          this.tapped = true;
+          this.tappable = true;
         }
 
-        if (byTap == this.tapped) {
+        if (byTap == this.tappable) {
             // Androidはtouchstartとmousedownのどちらも来るので
             if (!this.reachedKohoVisible && visible) {
             this.hintCount += 1;
@@ -253,7 +247,6 @@
         if (this.inputCell) {
           this.setCellValue(this.inputCell, no);
         }
-        this.inputCell = null;
       }
     }
   });
